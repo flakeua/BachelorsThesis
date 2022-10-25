@@ -1,3 +1,4 @@
+from pprint import pprint
 from face_detection import RetinaFace
 from SixDRepNet.model import SixDRepNet
 import math
@@ -35,7 +36,7 @@ if __name__ == '__main__':
     cudnn.enabled = True
     gpu = 0
     cam = 0
-    snapshot_path = "models/6DRepNet_300W_LP_AFLW2000.pth"
+    snapshot_path = "code/poc/models/6DRepNet_300W_LP_AFLW2000.pth"
     device = "mps"
     model = SixDRepNet(backbone_name='RepVGG-B1g2',
                        backbone_file='',
@@ -86,6 +87,11 @@ if __name__ == '__main__':
                 x_max2 = int(box[2])
                 y_max2 = int(box[3])
 
+                x_min3 = int(landmarks[0][0])
+                y_min3 = int(landmarks[0][1])
+                x_max3 = int(landmarks[1][0])
+                y_max3 = int(landmarks[1][1])
+
                 bbox_width = abs(x_max - x_min)
                 bbox_height = abs(y_max - y_min)
 
@@ -121,6 +127,11 @@ if __name__ == '__main__':
 
                 cv2.rectangle(frame, (x_min2, y_min2),
                               (x_max2, y_max2), (170, 170, 0), 5)
+                offset = ((x_min3 - x_min2)/2 + (x_max2-x_max3)/2)/2
+                x_offset = int(offset*1.2)
+                y_offset = int(offset*0.8)
+                cv2.rectangle(frame, (x_min3 - x_offset, y_min3 - y_offset),
+                              (x_max3 + x_offset, y_max3 + y_offset), (170, 0, 170), 5)
 
             cv2.imshow("Demo", frame)
             cv2.waitKey(5)
