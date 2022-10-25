@@ -127,9 +127,11 @@ if __name__ == '__main__':
 
                 cv2.rectangle(frame, (x_min2, y_min2),
                               (x_max2, y_max2), (170, 170, 0), 5)
-                offset = ((x_min3 - x_min2)/2 + (x_max2-x_max3)/2)/2
+                offset = abs(((x_min3 - x_min2)/2 + (x_max2-x_max3)/2)/2)
                 x_offset = int(offset*1.2)
                 y_offset = int(offset*0.8)
+                y_min3, y_max3 = (y_max3, y_min3) if y_min3 > y_max3 else (
+                    y_min3, y_max3)
                 cv2.rectangle(frame, (x_min3 - x_offset, y_min3 - y_offset),
                               (x_max3 + x_offset, y_max3 + y_offset), (170, 0, 170), 5)
 
