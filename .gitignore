@@ -5,6 +5,9 @@
 # Models since some of them are too big for github
 code/poc/models/*
 
+# Datasets
+datasets/*
+
 ### macOS ###
 # General
 .DS_Store

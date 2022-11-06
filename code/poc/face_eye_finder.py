@@ -1,25 +1,12 @@
-from pprint import pprint
 from face_detection import RetinaFace
 from SixDRepNet.model import SixDRepNet
-import math
-import re
-from matplotlib import pyplot as plt
-import sys
 import os
-import argparse
-
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
-from numpy.lib.function_base import _quantile_unchecked
 
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
 from torchvision import transforms
 import torch.backends.cudnn as cudnn
-import torchvision
-import torch.nn.functional as F
 from SixDRepNet import utils
 import matplotlib
 from PIL import Image
@@ -61,8 +48,10 @@ model.eval()  # Change model to 'eval' mode (BN uses moving mean/var).
 
 
 def get_input_data(image) -> dict:
+    coeff = 1920 / image.shape[1]
+    resized_image = cv2.resize(image, (1920, int(image.shape[0]*coeff)))
     with torch.no_grad():
-        faces = detector(image)
+        faces = detector(resized_image)
         result = []
         for box, landmarks, score in faces:
 
@@ -92,7 +81,7 @@ def get_input_data(image) -> dict:
             x_max += int(0.2*bbox_height)
             y_max += int(0.2*bbox_width)
 
-            img = image[y_min:y_max, x_min:x_max]
+            img = resized_image[y_min:y_max, x_min:x_max]
             img = Image.fromarray(img)
             img = img.convert('RGB')
             img = transformations(img)
@@ -120,10 +109,20 @@ def get_input_data(image) -> dict:
             x_offset = int(offset*1.2)
             y_offset = int(offset*0.8)
 
-            right_eye = image[y_3 - y_offset:y_3 +
-                              y_offset, x_3 - x_offset: x_3 + x_offset]
-            left_eye = image[y_4 - y_offset:y_4 +
-                             y_offset, x_4 - x_offset: x_4 + x_offset]
+            y_3_min = int((y_3 - y_offset) / coeff)
+            y_3_max = int((y_3 + y_offset) / coeff)
+            x_3_min = int((x_3 - x_offset) / coeff)
+            x_3_max = int((x_3 + x_offset) / coeff)
+
+            y_4_min = int((y_4 - y_offset) / coeff)
+            y_4_max = int((y_4 + y_offset) / coeff)
+            x_4_min = int((x_4 - x_offset) / coeff)
+            x_4_max = int((x_4 + x_offset) / coeff)
+
+            right_eye = image[y_3_min:y_3_max, x_3_min: x_3_max]
+            left_eye = image[y_4_min:y_4_max, x_4_min: x_4_max]
+            left_eye = cv2.resize(
+                left_eye, (right_eye.shape[1], right_eye.shape[0]))
             curr['image'] = cv2.hconcat([right_eye, left_eye])
             result.append(curr)
         return result
