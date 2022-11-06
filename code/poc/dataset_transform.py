@@ -14,6 +14,8 @@ def transform_cgds():
         params = i.split('.')[0].split('_')
         full_path = os.path.join(cgds_path, i)
         print(params)
+        if len(params) != 5:
+            continue
         subject = params[0]
         head_angle = params[2]
         eye_pitch = params[3]
@@ -27,6 +29,7 @@ def transform_cgds():
         image = input_data['image']
         new_name = '_'.join([subject, head_angle, eye_pitch, eye_yaw, str(round(input_data['p_pred_deg'].item(), 2)), str(
             round(input_data['r_pred_deg'].item(), 2)), str(round(input_data['y_pred_deg'].item(), 2))]) + '.jpg'
+        image = cv2.resize(image, (900, 300))
         cv2.imwrite(os.path.join(new_dataset_path, new_name), image)
 
 
