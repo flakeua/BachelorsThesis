@@ -3,6 +3,7 @@ from SixDRepNet.model import SixDRepNet
 import os
 import numpy as np
 import cv2
+from math import cos, sin
 
 import torch
 from torchvision import transforms
@@ -11,6 +12,9 @@ from SixDRepNet import utils
 import matplotlib
 from PIL import Image
 import time
+
+from networks import FirstEyeNet
+
 matplotlib.use('TkAgg')
 
 
@@ -48,8 +52,8 @@ model.eval()  # Change model to 'eval' mode (BN uses moving mean/var).
 
 
 def get_input_data(image) -> dict:
-    coeff = 1920 / image.shape[1]
-    resized_image = cv2.resize(image, (1920, int(image.shape[0]*coeff)))
+    coeff = 1280 / image.shape[1]
+    resized_image = cv2.resize(image, (1280, int(image.shape[0]*coeff)))
     with torch.no_grad():
         faces = detector(resized_image)
         result = []
@@ -92,10 +96,7 @@ def get_input_data(image) -> dict:
             if c == 27:
                 break
 
-            start = time.time()
             R_pred = model(img)
-            end = time.time()
-            print('Head pose estimation: %2f ms' % ((end - start)*1000.))
 
             euler = utils.compute_euler_angles_from_rotation_matrices(
                 R_pred, use_gpu=True)*180/np.pi
@@ -124,12 +125,32 @@ def get_input_data(image) -> dict:
             left_eye = cv2.resize(
                 left_eye, (right_eye.shape[1], right_eye.shape[0]))
             curr['image'] = cv2.hconcat([right_eye, left_eye])
+            curr['box'] = list(map(lambda x: x/coeff, box))
+            curr['landmarks'] = list(
+                map(lambda y: list(map(lambda x: x/coeff, y)), landmarks))
             result.append(curr)
         return result
 
 
+def draw_eye_axis(img, yaw, pitch, roll, tdx, tdy, size=100):
+
+    pitch = pitch * np.pi / 180
+    yaw = -(yaw * np.pi / 180)
+    roll = roll * np.pi / 180
+
+    x = size * (sin(yaw)) + tdx
+    y = size * (-cos(yaw) * sin(pitch)) + tdy
+
+    cv2.line(img, (int(tdx), int(tdy)), (int(x), int(y)), (255, 255, 0), 3)
+
+    return img
+
+
 if __name__ == '__main__':
 
+    transforms = transforms.Compose([transforms.ToPILImage(),
+                                     transforms.Resize((300, 900)),
+                                     transforms.ToTensor()])
     cap = cv2.VideoCapture(cam)
 
     # Check if the webcam is opened correctly
@@ -137,25 +158,23 @@ if __name__ == '__main__':
         raise IOError("Cannot open webcam")
 
     with torch.no_grad():
+        n = 0
         while True:
-            _, frame = cap.read()
+            # coeff = 1
+            # _, frame = cap.read()
+            images = os.listdir('./datasets/me_test/')
+            coeff = 1
+            frame = cv2.imread(
+                f'./datasets/me_test/{images[n]}')
 
-            # input_data = get_input_data(frame)
-            # if len(input_data) == 0:
-            #     continue
-            # input_data = input_data[0]
-            # print(input_data['p_pred_deg'])
-            # print(input_data['y_pred_deg'])
-            # print(input_data['r_pred_deg'])
-            # frame = input_data['image']
+            input_data = get_input_data(frame)
+            if len(input_data) == 0:
+                continue
 
-            faces = detector(frame)
-
-            for box, landmarks, score in faces:
-
+            for face in input_data:
+                box = face['box']
+                landmarks = face['landmarks']
                 # Print the location of each face in this image
-                if score < .95:
-                    continue
                 x_min = int(box[0])
                 y_min = int(box[1])
                 x_max = int(box[2])
@@ -179,38 +198,41 @@ if __name__ == '__main__':
                 x_max += int(0.2*bbox_height)
                 y_max += int(0.2*bbox_width)
 
-                img = frame[y_min:y_max, x_min:x_max]
-                img = Image.fromarray(img)
-                img = img.convert('RGB')
-                img = transformations(img)
+                p_pred_deg = face['p_pred_deg']
+                y_pred_deg = face['y_pred_deg']
+                r_pred_deg = face['r_pred_deg']
 
-                img = torch.Tensor(img[None, :]).to(device)
+                net = FirstEyeNet()
+                EYE_MODEL_PATH = './code/poc/models/first_eye_model.pth'
+                net.load_state_dict(torch.load(EYE_MODEL_PATH))
+                net.to(device)
+                image = face['image']
+                image = cv2.resize(image, (900, 300),
+                                   interpolation=cv2.INTER_CUBIC)
+                image = transforms(image)
+                image = torch.unsqueeze(image, dim=0).to(device)
+                res = net(image)
+                res = res.tolist()[0]
+                pitch = res[0]
+                yaw = -res[1]
+                print(pitch, yaw)
 
-                c = cv2.waitKey(1)
-                if c == 27:
-                    break
+                x_3 = int(landmarks[0][0])
+                y_3 = int(landmarks[0][1])
+                x_4 = int(landmarks[1][0])
+                y_4 = int(landmarks[1][1])
 
-                start = time.time()
-                R_pred = model(img)
-                end = time.time()
-                print('Head pose estimation: %2f ms' % ((end - start)*1000.))
+                # utils.draw_axis(frame, yaw, pitch, 0, x_3,
+                #                 y_3, size=60, thickness=2)
+                # utils.draw_axis(frame, yaw, pitch, 0, x_4,
+                #                 y_4, size=60, thickness=2)
 
-                euler = utils.compute_euler_angles_from_rotation_matrices(
-                    R_pred, use_gpu=True)*180/np.pi
-                p_pred_deg = euler[:, 0].cpu()
-                y_pred_deg = euler[:, 1].cpu()
-                r_pred_deg = euler[:, 2].cpu()
+                utils.draw_axis(frame, yaw, pitch, 0,
+                                x_min+int(.5*(x_max-x_min)), y_min+int(.5*(y_max-y_min)), size=130*coeff)
 
-                utils.draw_axis(frame, y_pred_deg, p_pred_deg, r_pred_deg,
-                                x_min+int(.5*(x_max-x_min)), y_min+int(.5*(y_max-y_min)), size=130)
-
-                offset = abs(((x_3 - x_min2)/2 + (x_max2-x_4)/2)/2)
-                x_offset = int(offset*1.2)
-                y_offset = int(offset*0.8)
-                cv2.rectangle(frame, (x_3 - x_offset, y_3 - y_offset),
-                              (x_3 + x_offset, y_3 + y_offset), (170, 0, 0), 5)
-                cv2.rectangle(frame, (x_4 - x_offset, y_4 - y_offset),
-                              (x_4 + x_offset, y_4 + y_offset), (0, 0, 170), 5)
+                # utils.draw_axis(frame, y_pred_deg, p_pred_deg, r_pred_deg,
+                #                 x_min+int(.5*(x_max-x_min)), y_min+int(.5*(y_max-y_min)), size=130)
 
             cv2.imshow("Demo", frame)
-            cv2.waitKey(5)
+            cv2.waitKey()
+            n += 1
