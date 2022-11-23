@@ -13,7 +13,7 @@ import matplotlib
 from PIL import Image
 import time
 
-from networks import FirstEyeNet
+from networks import ThirdEyeNet
 
 matplotlib.use('TkAgg')
 
@@ -51,7 +51,7 @@ model.to(device)
 model.eval()  # Change model to 'eval' mode (BN uses moving mean/var).
 
 
-def get_input_data(image) -> dict:
+def get_input_data(image, offset_coeff=1) -> dict:
     coeff = 1280 / image.shape[1]
     resized_image = cv2.resize(image, (1280, int(image.shape[0]*coeff)))
     with torch.no_grad():
@@ -107,8 +107,8 @@ def get_input_data(image) -> dict:
                     }
 
             offset = abs(((x_3 - x_min2)/2 + (x_max2-x_4)/2)/2)
-            x_offset = int(offset*1.2)
-            y_offset = int(offset*0.8)
+            x_offset = int(offset*1.2*offset_coeff)
+            y_offset = int(offset*0.8*offset_coeff)
 
             y_3_min = int((y_3 - y_offset) / coeff)
             y_3_max = int((y_3 + y_offset) / coeff)
@@ -149,7 +149,7 @@ def draw_eye_axis(img, yaw, pitch, roll, tdx, tdy, size=100):
 if __name__ == '__main__':
 
     transforms = transforms.Compose([transforms.ToPILImage(),
-                                     transforms.Resize((300, 900)),
+                                     transforms.Resize((100, 300)),
                                      transforms.ToTensor()])
     cap = cv2.VideoCapture(cam)
 
@@ -157,15 +157,19 @@ if __name__ == '__main__':
     if not cap.isOpened():
         raise IOError("Cannot open webcam")
 
+    net = ThirdEyeNet()
+    EYE_MODEL_PATH = './code/poc/models/second_eye_model_mirrored_hv.pth'
+    net.load_state_dict(torch.load(EYE_MODEL_PATH))
+    net.to(device)
     with torch.no_grad():
         n = 0
         while True:
-            # coeff = 1
-            # _, frame = cap.read()
-            images = os.listdir('./datasets/me_test/')
             coeff = 1
-            frame = cv2.imread(
-                f'./datasets/me_test/{images[n]}')
+            _, frame = cap.read()
+            # images = os.listdir('./datasets/me_test/')
+            # coeff = 1
+            # frame = cv2.imread(
+            #     f'./datasets/me_test/{images[n]}')
 
             input_data = get_input_data(frame)
             if len(input_data) == 0:
@@ -198,20 +202,18 @@ if __name__ == '__main__':
                 x_max += int(0.2*bbox_height)
                 y_max += int(0.2*bbox_width)
 
-                p_pred_deg = face['p_pred_deg']
-                y_pred_deg = face['y_pred_deg']
-                r_pred_deg = face['r_pred_deg']
+                hp = face['p_pred_deg']
+                hy = face['y_pred_deg']
+                hr = face['r_pred_deg']
 
-                net = FirstEyeNet()
-                EYE_MODEL_PATH = './code/poc/models/first_eye_model.pth'
-                net.load_state_dict(torch.load(EYE_MODEL_PATH))
-                net.to(device)
                 image = face['image']
-                image = cv2.resize(image, (900, 300),
+                image = cv2.resize(image, (300, 100),
                                    interpolation=cv2.INTER_CUBIC)
                 image = transforms(image)
+                head_pos = torch.unsqueeze(torch.tensor(
+                    [float(hp)/180, float(hr)/180, float(hy)/180], dtype=torch.float32), dim=0).to(device)
                 image = torch.unsqueeze(image, dim=0).to(device)
-                res = net(image)
+                res = net((image, head_pos))
                 res = res.tolist()[0]
                 pitch = res[0]
                 yaw = -res[1]
@@ -227,12 +229,13 @@ if __name__ == '__main__':
                 # utils.draw_axis(frame, yaw, pitch, 0, x_4,
                 #                 y_4, size=60, thickness=2)
 
-                utils.draw_axis(frame, yaw, pitch, 0,
+                utils.draw_axis(frame, yaw, pitch, hr,
                                 x_min+int(.5*(x_max-x_min)), y_min+int(.5*(y_max-y_min)), size=130*coeff)
 
                 # utils.draw_axis(frame, y_pred_deg, p_pred_deg, r_pred_deg,
                 #                 x_min+int(.5*(x_max-x_min)), y_min+int(.5*(y_max-y_min)), size=130)
 
             cv2.imshow("Demo", frame)
+            # cv2.imwrite(f'./images/face-{n}.jpg', frame)
             cv2.waitKey()
             n += 1
