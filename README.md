@@ -18,7 +18,7 @@ The purpose of this project is to investigate the feasibility of using ANNs for 
 
 ## Dataset
 
-A diverse dataset for eye-gaze estimation is generated using Unreal Engine and Metahuman technology. This dataset includes variations in parameters such as age, race, eye color, and face shape, as well as different lighting conditions to enhance the generalization capabilities of the models. The dataset is publicly available at [link_to_dataset](https://cogsci.fmph.uniba.sk/metahuman/). It is compiled of over 57,000 images with 15 characters in different eye and head positions. The file names are built like this: "{character name}\_{id}\_OP\_{vertical eye gaze angle}\_{horizontal eye gaze angle}.png".
+A diverse dataset for eye-gaze estimation is generated using Unreal Engine and Metahuman technology. This dataset includes variations in parameters such as age, race, eye color, and face shape, as well as different lighting conditions to enhance the generalization capabilities of the models. The dataset is publicly available [here](https://cogsci.fmph.uniba.sk/metahuman/). It is compiled of over 57,000 images with 15 characters in different eye and head positions. The file names are built like this: "{character name}\_{id}\_OP\_{vertical eye gaze angle}\_{horizontal eye gaze angle}.png".
 
 ## Model Architecture
 
