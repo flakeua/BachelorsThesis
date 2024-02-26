@@ -10,11 +10,11 @@ The purpose of this project is to investigate the feasibility of using ANNs for 
 
 - **Convolutional Neural Networks (CNNs)**: CNNs are employed as the core technology for eye-gaze estimation, since they are one of the most successful neural network architectures when it comes to working with image data. Various architectures and configurations are explored to improve the accuracy and robustness of the models.
 
-- **Unreal Engine and Metahuman Technology**: Unreal Engine and Metahuman technology are utilized for generating a diverse dataset for training the eye-gaze estimation models. These technologies enable access to high-resolution human models and dynamic lighting conditions, facilitating the creation of realistic and diverse training data.
+- **[Unreal Engine and Metahuman Technology](https://www.unrealengine.com/en-US/metahuman)**: Unreal Engine and Metahuman technology are utilized for generating a diverse dataset for training the eye-gaze estimation models. These technologies enable access to high-resolution human models and dynamic lighting conditions, facilitating the creation of realistic and diverse training data.
 
-- **RetinaFace**: RetinaFace is used for face detection, enabling the localization of faces in images or video frames. This is a crucial preprocessing step for extracting eye regions for gaze estimation.
+- **[RetinaFace](https://github.com/elliottzheng/face-detection)**: RetinaFace is used for face detection, enabling the localization of faces in images or video frames. This is a crucial preprocessing step for extracting eye regions for gaze estimation.
 
-- **SixDRepNet**: SixDRepNet is employed for head pose estimation, providing additional input data to improve the performance of the eye-gaze estimation models.
+- **[SixDRepNet](https://github.com/thohemp/6DRepNet)**: SixDRepNet is employed for head pose estimation, providing additional input data to improve the performance of the eye-gaze estimation models.
 
 ## Dataset
 
